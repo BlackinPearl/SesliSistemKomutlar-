@@ -1,0 +1,107 @@
+import speech_recognition as sr
+import subprocess
+from gtts import gTTS
+import os
+from pydub import AudioSegment
+from pydub.playback import play
+
+def speak(text):
+    """Verilen metni seslendir"""
+    tts = gTTS(text=text, lang='tr')
+    tts.save("output.mp3")
+    sound = AudioSegment.from_mp3("output.mp3")
+    play(sound)
+
+def run_as_admin(command):
+    """Yönetici olarak komut istemcisini çalıştır"""
+    import ctypes
+    command = command.split()
+    shell_cmd = subprocess.Popen(['cmd', '/c'] + command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
+    return shell_cmd.stdout.read().decode("cp857")  # Windows Türkçe karakter seti için çözüm
+
+def recognize_speech():
+    """Ses tanıma işlevselliği"""
+    r = sr.Recognizer()
+    with sr.Microphone() as source:
+        print("Komut bekleniyor...")
+        speak("Komut bekleniyor...")
+        audio = r.listen(source)
+
+    try:
+        command = r.recognize_google(audio, language="tr-TR").lower().strip()
+        print("Anlaşılan Komut: " + command)
+        return command
+    except sr.UnknownValueError:
+        print("Ses anlaşılamadı")
+        return ""
+    except sr.RequestError as e:
+        print("Ses hizmeti başarısız; {0}".format(e))
+        return ""
+    except Exception as e:
+        print("Bir hata oluştu: " + str(e))
+        return ""
+
+def main():
+    # Kullanıcıya komutları sesli olarak sıralı olarak göster
+    komutlar = ["diski temizle", "sistem dosyası denetleyicisi", "windows görüntü yöneticisi onar", 
+                "bileşen temizleme işlemi başlat", "güncellemeleri kontrol et", "gereksiz dosyaları temizle", 
+                "sağlık durumu onar", "güncelleme indirme klasörünü temizle","çıkış yap"]
+
+    print("Kullanılabilir Komutlar:")
+    speak("Kullanılabilir Komutlar:")
+    for komut in komutlar:
+        print("- " + komut)
+        speak(komut)
+
+    while True:
+        try:
+            # Sesli komutları al
+            user_input = recognize_speech()
+
+            # Çıkış koşulu kontrol ediliyor
+            if user_input == 'çıkış yap':
+                break
+
+            # Komutları çalıştır
+            if "diski temizle" in user_input:
+                output = run_as_admin("cleanmgr")
+                print(output)
+                speak("Disk temizleme işlemi tamamlandı.")
+            elif "sistem dosyası denetleyicisi" in user_input:
+                output = run_as_admin("sfc /scannow")
+                print(output)
+                speak("Sistem dosyaları denetleme işlemi tamamlandı.")
+            elif "windows görüntü yöneticisi onar" in user_input:
+                output = run_as_admin("dism /online /cleanup-image /restorehealth")
+                print(output)
+                speak("Windows görüntü yöneticisi onarma işlemi tamamlandı.")
+            elif "bileşen temizleme işlemi başlat" in user_input:
+                output = run_as_admin("dism.exe /online /cleanup-image /startcomponentcleanup")
+                print(output)
+                speak("Bileşen temizleme işlemi başlatıldı.")
+            elif "güncellemeleri kontrol et" in user_input:
+                output = run_as_admin("wuauclt.exe /updatenow")
+                print(output)
+                speak("Güncellemeler kontrol ediliyor.")
+            elif "gereksiz dosyaları temizle" in user_input:
+                output = run_as_admin("dism /online /cleanup-image /spsuperseded")
+                print(output)
+                speak("Gereksiz dosyalar temizlendi.")
+            elif "sağlık durumu onar" in user_input:
+                output = run_as_admin("dism /online /cleanup-image /restorehealth /source:C:\RepairSource\Windows /limitaccess")
+                print(output)
+                speak("Sağlık durumu onarılıyor.")
+            elif "güncelleme indirme klasörünü temizle" in user_input:
+                output = run_as_admin("RD /S /Q C:\Windows\SoftwareDistribution\Download")
+                print(output)
+                speak("Güncelleme indirme klasörü temizlendi.")
+            else:
+                print("Geçersiz komut!")
+                speak("Geçersiz komut!")
+
+        except Exception as e:
+            print("Hata:", str(e))
+            speak("Bir hata oluştu.")
+
+if __name__ == "__main__":
+    main()
